@@ -5,6 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mini Mercado EJC</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -900,57 +902,85 @@
 
     function gerarPDF() {
         if (!vendas.length) { toast('Caixa vazio', 'err'); return; }
+        if (typeof jspdf === 'undefined') { toast('PDF indisponível — verifique internet', 'err'); return; }
+
+        const { jsPDF } = jspdf;
+        const doc = new jsPDF();
         const { totais, geral } = calcTotais();
         const dataStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 
-        const linhas = [...vendas].reverse().map((v, i) => `
-            <tr>
-                <td>${i + 1}</td>
-                <td>${v.hora}</td>
-                <td>${vendaLabelPlain(v)}</td>
-                <td>${v.pag}</td>
-                <td class="val">${fmt(v.total)}</td>
-            </tr>`).join('');
+        /* cabeçalho */
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(18);
+        doc.setTextColor(27, 94, 32);
+        doc.text('Mini Mercado EJC', 14, 20);
 
-        const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
-<title>Relatório de Caixa - EJC</title>
-<style>
-  body { font-family: Arial, sans-serif; font-size: 12px; color: #333; margin: 24px; }
-  h1 { color: #1b5e20; font-size: 20px; margin: 0 0 4px; }
-  .sub { color: #888; margin-bottom: 20px; }
-  .total-box { background: #1b5e20; color: white; padding: 14px 20px; border-radius: 8px; margin-bottom: 16px; display: inline-block; }
-  .total-box .lbl { font-size: 11px; opacity: .8; }
-  .total-box .val { font-size: 26px; font-weight: bold; }
-  .grid { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; }
-  .box { border: 1px solid #ddd; border-radius: 8px; padding: 10px 16px; min-width: 110px; }
-  .box .lbl { font-size: 10px; color: #888; text-transform: uppercase; }
-  .box .val { font-size: 15px; font-weight: bold; color: #1b5e20; margin-top: 2px; }
-  h2 { font-size: 13px; color: #1b5e20; margin: 0 0 8px; }
-  table { width: 100%; border-collapse: collapse; }
-  th { background: #f5f5f5; padding: 8px; font-size: 10px; text-transform: uppercase; color: #777; border-bottom: 2px solid #ddd; text-align: left; }
-  td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; }
-  td.val { text-align: right; font-weight: bold; color: #1b5e20; }
-  @media print { @page { margin: 15mm; } }
-</style></head><body>
-<h1>Relatório de Caixa &mdash; Mini Mercado EJC</h1>
-<p class="sub">${dataStr} &nbsp;·&nbsp; ${vendas.length} venda${vendas.length !== 1 ? 's' : ''}</p>
-<div class="total-box"><div class="lbl">Total Geral</div><div class="val">${fmt(geral)}</div></div>
-<div class="grid">
-  <div class="box"><div class="lbl">💵 Dinheiro</div><div class="val">${fmt(totais['Dinheiro'])}</div></div>
-  <div class="box"><div class="lbl">📱 Pix</div><div class="val">${fmt(totais['Pix'])}</div></div>
-  <div class="box"><div class="lbl">💳 Crédito</div><div class="val">${fmt(totais['Crédito'])}</div></div>
-  <div class="box"><div class="lbl">💳 Débito</div><div class="val">${fmt(totais['Débito'])}</div></div>
-</div>
-<h2>Detalhamento das Vendas</h2>
-<table><thead><tr><th>#</th><th>Hora</th><th>Produto(s)</th><th>Pagamento</th><th style="text-align:right">Total</th></tr></thead>
-<tbody>${linhas}</tbody></table>
-</body></html>`;
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(120, 120, 120);
+        doc.text(`Relatório de Caixa  ·  ${dataStr}`, 14, 28);
+        doc.text(`${vendas.length} venda${vendas.length !== 1 ? 's' : ''}`, 14, 34);
 
-        const w = window.open('', '_blank');
-        w.document.write(html);
-        w.document.close();
-        w.focus();
-        setTimeout(() => w.print(), 400);
+        /* box total geral */
+        doc.setFillColor(27, 94, 32);
+        doc.roundedRect(14, 40, 78, 22, 3, 3, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.text('TOTAL GERAL', 19, 48);
+        doc.setFontSize(15);
+        doc.setFont('helvetica', 'bold');
+        doc.text(fmt(geral), 19, 57);
+
+        /* boxes por pagamento */
+        const pags = [
+            { label: 'Dinheiro', valor: totais['Dinheiro'] },
+            { label: 'Pix',      valor: totais['Pix']      },
+            { label: 'Crédito',  valor: totais['Crédito']  },
+            { label: 'Débito',   valor: totais['Débito']   },
+        ];
+        pags.forEach((p, i) => {
+            const x = 98 + (i % 2) * 57;
+            const y = 40 + Math.floor(i / 2) * 13;
+            doc.setFillColor(240, 248, 240);
+            doc.roundedRect(x, y, 53, 11, 2, 2, 'F');
+            doc.setTextColor(100, 100, 100);
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'normal');
+            doc.text(p.label.toUpperCase(), x + 3, y + 4.5);
+            doc.setTextColor(27, 94, 32);
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.text(fmt(p.valor), x + 3, y + 9);
+        });
+
+        /* tabela de vendas */
+        doc.setTextColor(27, 94, 32);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Detalhamento das Vendas', 14, 72);
+
+        doc.autoTable({
+            startY: 76,
+            head: [['#', 'Hora', 'Produto(s)', 'Pagamento', 'Total']],
+            body: [...vendas].reverse().map((v, i) => [
+                i + 1, v.hora, vendaLabelPlain(v), v.pag, fmt(v.total)
+            ]),
+            styles: { fontSize: 9, cellPadding: 3 },
+            headStyles: { fillColor: [27, 94, 32], textColor: 255, fontStyle: 'bold' },
+            alternateRowStyles: { fillColor: [245, 251, 245] },
+            columnStyles: {
+                0: { cellWidth: 10, halign: 'center' },
+                1: { cellWidth: 16 },
+                2: { cellWidth: 88 },
+                3: { cellWidth: 34 },
+                4: { cellWidth: 34, halign: 'right' },
+            },
+        });
+
+        const data = new Date().toLocaleDateString('pt-BR').replace(/\//g, '-');
+        doc.save(`caixa-ejc-${data}.pdf`);
+        toast('PDF baixado!', 'ok');
     }
 
     function gerarXLSX() {
