@@ -1,0 +1,1005 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Mercado EJC</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4f8;
+            color: #333;
+            min-height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(135deg, #1b5e20, #43a047);
+            color: white;
+            padding: 16px 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+        }
+
+        header h1 { font-size: 1.4rem; font-weight: 700; }
+        header p  { font-size: 0.8rem; opacity: 0.85; margin-top: 3px; }
+
+        .tabs {
+            display: flex;
+            background: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 13px 8px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #888;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .tab.active { color: #1b5e20; border-bottom-color: #43a047; }
+        .tab:hover  { background: #f5f5f5; }
+        .tab-icon   { display: block; font-size: 1.3rem; margin-bottom: 2px; }
+
+        .content {
+            padding: 18px 14px;
+            max-width: 580px;
+            margin: 0 auto;
+        }
+
+        .page { display: none; }
+        .page.active { display: block; }
+
+        .card {
+            background: white;
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+        }
+
+        .card h2 {
+            font-size: 0.95rem;
+            color: #1b5e20;
+            margin-bottom: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .form-group { margin-bottom: 14px; }
+
+        label {
+            display: block;
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 6px;
+        }
+
+        input[type="text"],
+        input[type="number"] {
+            width: 100%;
+            padding: 12px 14px;
+            border: 2px solid #e0e0e0;
+            border-radius: 9px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+            background: white;
+        }
+
+        input:focus { outline: none; border-color: #43a047; }
+
+        .btn {
+            padding: 13px 20px;
+            border: none;
+            border-radius: 9px;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+            width: 100%;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #1b5e20, #43a047);
+            color: white;
+        }
+
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        .btn-danger {
+            background: #e53935;
+            color: white;
+            padding: 7px 12px;
+            width: auto;
+            font-size: 0.82rem;
+            border-radius: 7px;
+        }
+
+        .btn-danger:hover { background: #c62828; }
+
+        /* PAYMENT */
+        .payment-methods {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .payment-option { display: none; }
+
+        .payment-option + label {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 13px 8px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.82rem;
+            color: #555;
+            gap: 5px;
+            font-weight: 600;
+        }
+
+        .payment-option + label .pay-icon { font-size: 1.4rem; }
+
+        .payment-option:checked + label {
+            border-color: #43a047;
+            background: #e8f5e9;
+            color: #1b5e20;
+        }
+
+        /* PRODUCT GRID */
+        .produto-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 4px;
+        }
+
+        .produto-btn {
+            position: relative;
+            padding: 13px 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            background: white;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .produto-btn:hover  { border-color: #43a047; background: #f1f8f2; }
+        .produto-btn.in-cart { border-color: #43a047; background: #e8f5e9; }
+
+        .produto-btn .prod-nome {
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: #333;
+        }
+
+        .produto-btn .prod-preco {
+            font-size: 0.85rem;
+            color: #1b5e20;
+            font-weight: 700;
+            margin-top: 4px;
+        }
+
+        .cart-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #e53935;
+            color: white;
+            font-size: 0.72rem;
+            font-weight: 700;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 2px solid white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+        }
+
+        /* CART */
+        .carrinho-section {
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 2px dashed #e0e0e0;
+        }
+
+        .carrinho-label {
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #999;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 10px;
+        }
+
+        .carrinho-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 0;
+            border-bottom: 1px solid #f5f5f5;
+        }
+
+        .carrinho-item:last-child { border-bottom: none; }
+
+        .ci-nome {
+            flex: 1;
+            font-weight: 600;
+            font-size: 0.9rem;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .ci-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        .ci-btn {
+            width: 30px;
+            height: 30px;
+            border: 2px solid #e0e0e0;
+            border-radius: 7px;
+            font-size: 1.1rem;
+            background: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+        }
+
+        .ci-btn.plus {
+            border-color: #43a047;
+            background: #e8f5e9;
+            color: #1b5e20;
+        }
+
+        .ci-qtd {
+            font-weight: 700;
+            font-size: 1rem;
+            min-width: 22px;
+            text-align: center;
+        }
+
+        .ci-sub {
+            font-weight: 700;
+            color: #1b5e20;
+            font-size: 0.9rem;
+            min-width: 62px;
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .ci-del {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #e53935;
+            font-size: 1.1rem;
+            padding: 4px;
+            flex-shrink: 0;
+            line-height: 1;
+        }
+
+        /* PREVIEW */
+        #venda-preview {
+            background: #f9fef9;
+            border: 2px solid #c8e6c9;
+            border-radius: 10px;
+            padding: 14px;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+
+        #venda-preview .preview-label { font-size: 0.82rem; color: #666; }
+        #venda-total-preview { font-size: 1.9rem; font-weight: 700; color: #1b5e20; }
+
+        /* LIST ITEMS */
+        .list-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 0;
+            border-bottom: 1px solid #f0f0f0;
+            gap: 8px;
+        }
+
+        .list-item:last-child { border-bottom: none; }
+
+        .item-info { flex: 1; min-width: 0; }
+
+        .item-name {
+            font-weight: 600;
+            font-size: 0.93rem;
+        }
+
+        .item-detail {
+            font-size: 0.78rem;
+            color: #999;
+            margin-top: 3px;
+        }
+
+        .item-sub-list {
+            font-size: 0.76rem;
+            color: #aaa;
+            margin-top: 2px;
+        }
+
+        .item-price {
+            font-weight: 700;
+            color: #1b5e20;
+            font-size: 0.97rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        /* BADGES */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .badge-dinheiro { background: #e8f5e9; color: #1b5e20; }
+        .badge-pix      { background: #e3f2fd; color: #0d47a1; }
+        .badge-credito  { background: #fff3e0; color: #e65100; }
+        .badge-debito   { background: #f3e5f5; color: #6a1b9a; }
+
+        /* SUMMARY */
+        .total-box {
+            background: linear-gradient(135deg, #1b5e20, #43a047);
+            color: white;
+            border-radius: 14px;
+            padding: 22px;
+            text-align: center;
+            margin-bottom: 14px;
+        }
+
+        .total-box .total-label { font-size: 0.88rem; opacity: 0.85; }
+        .total-box .total-value { font-size: 2.2rem; font-weight: 700; margin-top: 4px; }
+        .total-box .total-sub   { font-size: 0.82rem; opacity: 0.75; margin-top: 4px; }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+
+        .summary-card {
+            background: white;
+            border-radius: 12px;
+            padding: 14px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        }
+
+        .summary-card .pay-label { font-size: 0.8rem; color: #777; margin-bottom: 5px; }
+        .summary-card .pay-value { font-size: 1.15rem; font-weight: 700; color: #333; }
+
+        .section-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            margin: 18px 0 10px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 28px 20px;
+            color: #bbb;
+        }
+
+        .empty-state .empty-icon { font-size: 2.5rem; margin-bottom: 10px; }
+        .empty-state p { font-size: 0.88rem; }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(120px);
+            background: #333;
+            color: white;
+            padding: 12px 26px;
+            border-radius: 24px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            z-index: 9999;
+            transition: transform 0.3s ease;
+            white-space: nowrap;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+        }
+
+        .toast.show { transform: translateX(-50%) translateY(0); }
+        .toast.ok   { background: #2e7d32; }
+        .toast.err  { background: #c62828; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🛒 Mini Mercado EJC</h1>
+    <p id="data-header"></p>
+</header>
+
+<div class="tabs">
+    <div class="tab active" onclick="showTab(this, 'venda')">
+        <span class="tab-icon">🛒</span>Venda
+    </div>
+    <div class="tab" onclick="showTab(this, 'produtos')">
+        <span class="tab-icon">📦</span>Produtos
+    </div>
+    <div class="tab" onclick="showTab(this, 'caixa')">
+        <span class="tab-icon">💰</span>Caixa
+    </div>
+</div>
+
+<div class="content">
+
+    <!-- ===== VENDA ===== -->
+    <div class="page active" id="page-venda">
+
+        <div class="card">
+            <h2>Montar Pedido</h2>
+
+            <div class="form-group">
+                <label>Toque no produto para adicionar</label>
+                <div class="produto-grid" id="produtos-grid"></div>
+                <div id="no-products-msg" style="display:none; color:#bbb; font-size:0.85rem; text-align:center; padding:10px 0;">
+                    Nenhum produto cadastrado. Vá em "Produtos" para adicionar.
+                </div>
+            </div>
+
+            <div class="carrinho-section" id="carrinho-section" style="display:none;">
+                <div class="carrinho-label">🛒 Carrinho</div>
+                <div id="carrinho-list"></div>
+            </div>
+
+            <div class="form-group" style="margin-top:14px;">
+                <label>Forma de Pagamento</label>
+                <div class="payment-methods">
+                    <input type="radio" name="pagamento" id="pay-din" value="Dinheiro" class="payment-option" checked>
+                    <label for="pay-din"><span class="pay-icon">💵</span>Dinheiro</label>
+
+                    <input type="radio" name="pagamento" id="pay-pix" value="Pix" class="payment-option">
+                    <label for="pay-pix"><span class="pay-icon">📱</span>Pix</label>
+
+                    <input type="radio" name="pagamento" id="pay-cred" value="Crédito" class="payment-option">
+                    <label for="pay-cred"><span class="pay-icon">💳</span>Crédito</label>
+
+                    <input type="radio" name="pagamento" id="pay-deb" value="Débito" class="payment-option">
+                    <label for="pay-deb"><span class="pay-icon">💳</span>Débito</label>
+                </div>
+            </div>
+
+            <div id="venda-preview" style="display:none;">
+                <div class="preview-label">Total a cobrar</div>
+                <div id="venda-total-preview"></div>
+            </div>
+
+            <button class="btn btn-primary" onclick="registrarVenda()">✔ Registrar Venda</button>
+        </div>
+
+        <div class="section-title">Vendas Registradas</div>
+        <div class="card">
+            <div id="vendas-list"></div>
+        </div>
+    </div>
+
+    <!-- ===== PRODUTOS ===== -->
+    <div class="page" id="page-produtos">
+
+        <div class="card">
+            <h2>Adicionar Produto</h2>
+            <div class="form-group">
+                <label>Nome do produto</label>
+                <input type="text" id="prod-nome" placeholder="Ex: Refrigerante, Salgado...">
+            </div>
+            <div class="form-group">
+                <label>Preço (R$)</label>
+                <input type="number" id="prod-preco" placeholder="0,00" step="0.01" min="0">
+            </div>
+            <button class="btn btn-primary" onclick="adicionarProduto()">+ Adicionar Produto</button>
+        </div>
+
+        <div class="section-title">Produtos Cadastrados</div>
+        <div class="card">
+            <div id="produtos-list"></div>
+        </div>
+    </div>
+
+    <!-- ===== CAIXA ===== -->
+    <div class="page" id="page-caixa">
+
+        <div class="total-box">
+            <div class="total-label">Total do Caixa</div>
+            <div class="total-value" id="total-geral">R$ 0,00</div>
+            <div class="total-sub" id="total-count">0 vendas</div>
+        </div>
+
+        <div class="summary-grid">
+            <div class="summary-card">
+                <div class="pay-label">💵 Dinheiro</div>
+                <div class="pay-value" id="total-dinheiro">R$ 0,00</div>
+            </div>
+            <div class="summary-card">
+                <div class="pay-label">📱 Pix</div>
+                <div class="pay-value" id="total-pix">R$ 0,00</div>
+            </div>
+            <div class="summary-card">
+                <div class="pay-label">💳 Crédito</div>
+                <div class="pay-value" id="total-credito">R$ 0,00</div>
+            </div>
+            <div class="summary-card">
+                <div class="pay-label">💳 Débito</div>
+                <div class="pay-value" id="total-debito">R$ 0,00</div>
+            </div>
+        </div>
+
+        <div class="section-title">Histórico de Vendas</div>
+        <div class="card">
+            <div id="caixa-lista"></div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:4px;">
+            <button class="btn" style="background:#1565c0; color:white;" onclick="gerarPDF()">
+                📄 Exportar PDF
+            </button>
+            <button class="btn" style="background:#2e7d32; color:white;" onclick="gerarXLSX()">
+                📊 Exportar XLSX
+            </button>
+        </div>
+        <button class="btn" style="background:#e53935; color:white; margin-top:10px;" onclick="fecharCaixa()">
+            🔒 Fechar Caixa / Zerar
+        </button>
+    </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+    /* ---- ESTADO ---- */
+    let produtos = JSON.parse(localStorage.getItem('ejc_produtos') || '[]');
+    let vendas   = JSON.parse(localStorage.getItem('ejc_vendas')   || '[]');
+    let carrinho = []; // [{prodId, nome, preco, qtd}]
+
+    /* ---- PERSISTÊNCIA ---- */
+    function salvar() {
+        localStorage.setItem('ejc_produtos', JSON.stringify(produtos));
+        localStorage.setItem('ejc_vendas',   JSON.stringify(vendas));
+    }
+
+    /* ---- UTILITÁRIOS ---- */
+    function fmt(v) {
+        return 'R$ ' + v.toFixed(2).replace('.', ',');
+    }
+
+    function badgeClass(pag) {
+        const map = { 'Dinheiro': 'dinheiro', 'Pix': 'pix', 'Crédito': 'credito', 'Débito': 'debito' };
+        return 'badge badge-' + (map[pag] || 'dinheiro');
+    }
+
+    function toast(msg, tipo = '') {
+        const el = document.getElementById('toast');
+        el.textContent = msg;
+        el.className = 'toast show ' + tipo;
+        clearTimeout(el._t);
+        el._t = setTimeout(() => el.className = 'toast', 2600);
+    }
+
+    function totalCarrinho() {
+        return carrinho.reduce((acc, i) => acc + i.preco * i.qtd, 0);
+    }
+
+    /* ---- TABS ---- */
+    function showTab(el, tab) {
+        document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.getElementById('page-' + tab).classList.add('active');
+        el.classList.add('active');
+        renderAll();
+    }
+
+    /* ---- RENDER ---- */
+    function renderAll() {
+        renderProdutosGrid();
+        renderCarrinho();
+        renderProdutosList();
+        renderVendas();
+        renderCaixa();
+        updatePreview();
+    }
+
+    function renderProdutosGrid() {
+        const grid = document.getElementById('produtos-grid');
+        const msg  = document.getElementById('no-products-msg');
+        if (!produtos.length) {
+            grid.style.display = 'none';
+            msg.style.display  = 'block';
+            return;
+        }
+        msg.style.display  = 'none';
+        grid.style.display = 'grid';
+        grid.innerHTML = produtos.map(p => {
+            const ci    = carrinho.find(i => i.prodId === p.id);
+            const badge = ci ? `<div class="cart-badge">${ci.qtd}</div>` : '';
+            return `
+                <button class="produto-btn ${ci ? 'in-cart' : ''}" onclick="adicionarAoCarrinho('${p.id}')">
+                    ${badge}
+                    <div class="prod-nome">${escHtml(p.nome)}</div>
+                    <div class="prod-preco">${fmt(p.preco)}</div>
+                </button>
+            `;
+        }).join('');
+    }
+
+    function renderCarrinho() {
+        const section = document.getElementById('carrinho-section');
+        const list    = document.getElementById('carrinho-list');
+        if (!carrinho.length) {
+            section.style.display = 'none';
+            return;
+        }
+        section.style.display = 'block';
+        list.innerHTML = carrinho.map(item => `
+            <div class="carrinho-item">
+                <span class="ci-nome">${escHtml(item.nome)}</span>
+                <div class="ci-controls">
+                    <button class="ci-btn" onclick="changeCarrinhoQtd('${item.prodId}', -1)">−</button>
+                    <span class="ci-qtd">${item.qtd}</span>
+                    <button class="ci-btn plus" onclick="changeCarrinhoQtd('${item.prodId}', 1)">+</button>
+                </div>
+                <span class="ci-sub">${fmt(item.preco * item.qtd)}</span>
+                <button class="ci-del" onclick="removerDoCarrinho('${item.prodId}')">✕</button>
+            </div>
+        `).join('');
+    }
+
+    function renderProdutosList() {
+        const el = document.getElementById('produtos-list');
+        if (!produtos.length) {
+            el.innerHTML = '<div class="empty-state"><div class="empty-icon">📦</div><p>Nenhum produto cadastrado</p></div>';
+            return;
+        }
+        el.innerHTML = produtos.map(p => `
+            <div class="list-item">
+                <div class="item-info">
+                    <div class="item-name">${escHtml(p.nome)}</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                    <span class="item-price">${fmt(p.preco)}</span>
+                    <button class="btn btn-danger" onclick="removerProduto('${p.id}')">Remover</button>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function vendaLabel(v) {
+        if (v.itens) {
+            return v.itens.map(i => escHtml(i.nome) + (i.qtd > 1 ? ` x${i.qtd}` : '')).join(' + ');
+        }
+        return escHtml(v.nome) + (v.qtd > 1 ? ` x${v.qtd}` : '');
+    }
+
+    function vendaSubItens(v) {
+        if (v.itens && v.itens.length > 1) {
+            return v.itens.map(i => `${escHtml(i.nome)} x${i.qtd} = ${fmt(i.subtotal)}`).join(' · ');
+        }
+        return '';
+    }
+
+    function renderVendas() {
+        const el = document.getElementById('vendas-list');
+        if (!vendas.length) {
+            el.innerHTML = '<div class="empty-state"><div class="empty-icon">🛒</div><p>Nenhuma venda registrada ainda</p></div>';
+            return;
+        }
+        el.innerHTML = [...vendas].reverse().map(v => {
+            const sub = vendaSubItens(v);
+            return `
+                <div class="list-item">
+                    <div class="item-info">
+                        <div class="item-name">${vendaLabel(v)}</div>
+                        ${sub ? `<div class="item-sub-list">${sub}</div>` : ''}
+                        <div class="item-detail">
+                            <span class="${badgeClass(v.pag)}">${v.pag}</span>
+                            <span style="margin-left:6px;">${v.hora}</span>
+                        </div>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+                        <span class="item-price">${fmt(v.total)}</span>
+                        <button class="btn btn-danger" onclick="cancelarVenda('${v.id}')">✕</button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function renderCaixa() {
+        const totais = { Dinheiro: 0, Pix: 0, 'Crédito': 0, 'Débito': 0 };
+        let total = 0;
+        vendas.forEach(v => {
+            totais[v.pag] = (totais[v.pag] || 0) + v.total;
+            total += v.total;
+        });
+        document.getElementById('total-geral').textContent    = fmt(total);
+        document.getElementById('total-dinheiro').textContent = fmt(totais['Dinheiro']);
+        document.getElementById('total-pix').textContent      = fmt(totais['Pix']);
+        document.getElementById('total-credito').textContent  = fmt(totais['Crédito']);
+        document.getElementById('total-debito').textContent   = fmt(totais['Débito']);
+        document.getElementById('total-count').textContent    = `${vendas.length} venda${vendas.length !== 1 ? 's' : ''}`;
+
+        const lista = document.getElementById('caixa-lista');
+        if (!vendas.length) {
+            lista.innerHTML = '<div class="empty-state"><div class="empty-icon">💰</div><p>Caixa vazio</p></div>';
+            return;
+        }
+        lista.innerHTML = [...vendas].reverse().map(v => {
+            const sub = vendaSubItens(v);
+            return `
+                <div class="list-item">
+                    <div class="item-info">
+                        <div class="item-name">${vendaLabel(v)}</div>
+                        ${sub ? `<div class="item-sub-list">${sub}</div>` : ''}
+                        <div class="item-detail">
+                            <span class="${badgeClass(v.pag)}">${v.pag}</span>
+                            <span style="margin-left:6px;">${v.hora}</span>
+                        </div>
+                    </div>
+                    <span class="item-price">${fmt(v.total)}</span>
+                </div>
+            `;
+        }).join('');
+    }
+
+    function updatePreview() {
+        const preview = document.getElementById('venda-preview');
+        const total   = totalCarrinho();
+        if (carrinho.length > 0) {
+            document.getElementById('venda-total-preview').textContent = fmt(total);
+            preview.style.display = 'block';
+        } else {
+            preview.style.display = 'none';
+        }
+    }
+
+    /* ---- CARRINHO ---- */
+    function adicionarAoCarrinho(id) {
+        const prod = produtos.find(p => p.id === id);
+        if (!prod) return;
+        const item = carrinho.find(i => i.prodId === id);
+        if (item) {
+            item.qtd++;
+        } else {
+            carrinho.push({ prodId: id, nome: prod.nome, preco: prod.preco, qtd: 1 });
+        }
+        renderProdutosGrid();
+        renderCarrinho();
+        updatePreview();
+    }
+
+    function changeCarrinhoQtd(prodId, delta) {
+        const item = carrinho.find(i => i.prodId === prodId);
+        if (!item) return;
+        item.qtd = Math.max(1, item.qtd + delta);
+        renderProdutosGrid();
+        renderCarrinho();
+        updatePreview();
+    }
+
+    function removerDoCarrinho(prodId) {
+        carrinho = carrinho.filter(i => i.prodId !== prodId);
+        renderProdutosGrid();
+        renderCarrinho();
+        updatePreview();
+    }
+
+    /* ---- PRODUTOS ---- */
+    function adicionarProduto() {
+        const nome  = document.getElementById('prod-nome').value.trim();
+        const preco = parseFloat(document.getElementById('prod-preco').value);
+        if (!nome)              { toast('Informe o nome do produto', 'err'); return; }
+        if (!preco || preco <= 0) { toast('Informe um preço válido', 'err'); return; }
+
+        produtos.push({ id: Date.now().toString(), nome, preco });
+        salvar();
+        document.getElementById('prod-nome').value  = '';
+        document.getElementById('prod-preco').value = '';
+        renderAll();
+        toast('Produto adicionado!', 'ok');
+    }
+
+    function removerProduto(id) {
+        if (!confirm('Remover este produto?')) return;
+        produtos = produtos.filter(p => p.id !== id);
+        carrinho = carrinho.filter(i => i.prodId !== id);
+        salvar();
+        renderAll();
+        toast('Produto removido');
+    }
+
+    /* ---- VENDAS ---- */
+    function registrarVenda() {
+        if (!carrinho.length) { toast('Adicione pelo menos um produto', 'err'); return; }
+        const pag   = document.querySelector('input[name="pagamento"]:checked').value;
+        const total = totalCarrinho();
+        const hora  = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+        vendas.push({
+            id: Date.now().toString(),
+            itens: carrinho.map(i => ({ nome: i.nome, preco: i.preco, qtd: i.qtd, subtotal: i.preco * i.qtd })),
+            pag,
+            total,
+            hora
+        });
+        carrinho = [];
+        salvar();
+        renderAll();
+        toast(`Venda registrada: ${fmt(total)}`, 'ok');
+    }
+
+    function cancelarVenda(id) {
+        if (!confirm('Cancelar esta venda?')) return;
+        vendas = vendas.filter(v => v.id !== id);
+        salvar();
+        renderAll();
+        toast('Venda cancelada');
+    }
+
+    function fecharCaixa() {
+        if (!vendas.length) { toast('O caixa já está vazio'); return; }
+        if (!confirm(`Fechar o caixa e zerar as ${vendas.length} venda(s)?\n\nEsta ação não pode ser desfeita.`)) return;
+        vendas = [];
+        salvar();
+        renderAll();
+        toast('Caixa fechado!', 'ok');
+    }
+
+    /* ---- EXPORTAÇÃO ---- */
+    function calcTotais() {
+        const t = { Dinheiro: 0, Pix: 0, 'Crédito': 0, 'Débito': 0 };
+        let geral = 0;
+        vendas.forEach(v => { t[v.pag] = (t[v.pag] || 0) + v.total; geral += v.total; });
+        return { totais: t, geral };
+    }
+
+    function vendaLabelPlain(v) {
+        if (v.itens) return v.itens.map(i => i.nome + (i.qtd > 1 ? ` x${i.qtd}` : '')).join(' + ');
+        return v.nome + (v.qtd > 1 ? ` x${v.qtd}` : '');
+    }
+
+    function gerarPDF() {
+        if (!vendas.length) { toast('Caixa vazio', 'err'); return; }
+        const { totais, geral } = calcTotais();
+        const dataStr = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+
+        const linhas = [...vendas].reverse().map((v, i) => `
+            <tr>
+                <td>${i + 1}</td>
+                <td>${v.hora}</td>
+                <td>${vendaLabelPlain(v)}</td>
+                <td>${v.pag}</td>
+                <td class="val">${fmt(v.total)}</td>
+            </tr>`).join('');
+
+        const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Relatório de Caixa - EJC</title>
+<style>
+  body { font-family: Arial, sans-serif; font-size: 12px; color: #333; margin: 24px; }
+  h1 { color: #1b5e20; font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #888; margin-bottom: 20px; }
+  .total-box { background: #1b5e20; color: white; padding: 14px 20px; border-radius: 8px; margin-bottom: 16px; display: inline-block; }
+  .total-box .lbl { font-size: 11px; opacity: .8; }
+  .total-box .val { font-size: 26px; font-weight: bold; }
+  .grid { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; }
+  .box { border: 1px solid #ddd; border-radius: 8px; padding: 10px 16px; min-width: 110px; }
+  .box .lbl { font-size: 10px; color: #888; text-transform: uppercase; }
+  .box .val { font-size: 15px; font-weight: bold; color: #1b5e20; margin-top: 2px; }
+  h2 { font-size: 13px; color: #1b5e20; margin: 0 0 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { background: #f5f5f5; padding: 8px; font-size: 10px; text-transform: uppercase; color: #777; border-bottom: 2px solid #ddd; text-align: left; }
+  td { padding: 7px 8px; border-bottom: 1px solid #f0f0f0; }
+  td.val { text-align: right; font-weight: bold; color: #1b5e20; }
+  @media print { @page { margin: 15mm; } }
+</style></head><body>
+<h1>Relatório de Caixa &mdash; Mini Mercado EJC</h1>
+<p class="sub">${dataStr} &nbsp;·&nbsp; ${vendas.length} venda${vendas.length !== 1 ? 's' : ''}</p>
+<div class="total-box"><div class="lbl">Total Geral</div><div class="val">${fmt(geral)}</div></div>
+<div class="grid">
+  <div class="box"><div class="lbl">💵 Dinheiro</div><div class="val">${fmt(totais['Dinheiro'])}</div></div>
+  <div class="box"><div class="lbl">📱 Pix</div><div class="val">${fmt(totais['Pix'])}</div></div>
+  <div class="box"><div class="lbl">💳 Crédito</div><div class="val">${fmt(totais['Crédito'])}</div></div>
+  <div class="box"><div class="lbl">💳 Débito</div><div class="val">${fmt(totais['Débito'])}</div></div>
+</div>
+<h2>Detalhamento das Vendas</h2>
+<table><thead><tr><th>#</th><th>Hora</th><th>Produto(s)</th><th>Pagamento</th><th style="text-align:right">Total</th></tr></thead>
+<tbody>${linhas}</tbody></table>
+</body></html>`;
+
+        const w = window.open('', '_blank');
+        w.document.write(html);
+        w.document.close();
+        w.focus();
+        setTimeout(() => w.print(), 400);
+    }
+
+    function gerarXLSX() {
+        if (!vendas.length) { toast('Caixa vazio', 'err'); return; }
+        if (typeof XLSX === 'undefined') { toast('XLSX indisponível — verifique internet', 'err'); return; }
+
+        const { totais, geral } = calcTotais();
+        const wb = XLSX.utils.book_new();
+
+        /* aba Resumo */
+        const resumo = [
+            ['Relatório de Caixa — Mini Mercado EJC'],
+            [new Date().toLocaleDateString('pt-BR')],
+            [],
+            ['Resumo por Forma de Pagamento'],
+            ['Forma de Pagamento', 'Total (R$)'],
+            ['Dinheiro',  totais['Dinheiro']],
+            ['Pix',       totais['Pix']],
+            ['Crédito',   totais['Crédito']],
+            ['Débito',    totais['Débito']],
+            [],
+            ['TOTAL GERAL', geral],
+        ];
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(resumo), 'Resumo');
+
+        /* aba Vendas */
+        const rows = [['#', 'Hora', 'Produto(s)', 'Forma de Pagamento', 'Total (R$)']];
+        [...vendas].reverse().forEach((v, i) => {
+            rows.push([i + 1, v.hora, vendaLabelPlain(v), v.pag, v.total]);
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Vendas');
+
+        const nome = `caixa-ejc-${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.xlsx`;
+        XLSX.writeFile(wb, nome);
+        toast('Arquivo XLSX gerado!', 'ok');
+    }
+
+    /* ---- SEGURANÇA ---- */
+    function escHtml(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    /* ---- INIT ---- */
+    document.getElementById('data-header').textContent = new Date().toLocaleDateString('pt-BR', {
+        weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+    });
+
+    renderAll();
+</script>
+
+</body>
+</html>
